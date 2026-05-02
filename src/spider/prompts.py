@@ -213,3 +213,65 @@ Be specific. Quote screen names and IDs verbatim. Don't write filler — every c
 
 Output Markdown only — no preamble, no code fences around the whole document.
 """
+
+
+# ---------------------------------------------------------------------------
+# Credential-aware prompt + tool builders
+# ---------------------------------------------------------------------------
+
+FILL_CREDENTIAL_TOOL: dict = {
+    "name": "fill_credential",
+    "description": (
+        "Type a stored credential VALUE into an input field. You provide only "
+        "the credential field NAME; the harness looks up the value and types "
+        "it. The actual credential value is never shown to you. "
+        "Optionally provide an element_id to tap (focus) before typing — "
+        "use this when a field isn't already focused."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "field_name": {
+                "type": "string",
+                "description": "Name of the credential field, e.g. 'username', 'password'.",
+            },
+            "element_id": {
+                "type": "string",
+                "description": "Optional: element to tap first to focus the input.",
+            },
+        },
+        "required": ["field_name"],
+    },
+}
+
+
+_CREDENTIALS_GUIDANCE_TEMPLATE = """
+
+# Login credentials available
+The harness has been provided with the following named credential fields:
+{fields_list}
+
+If you encounter a login, signup, or any authentication screen:
+1. Tap the appropriate input field to focus it (or pass `element_id` to `fill_credential` to focus and fill in one step).
+2. Call `fill_credential` with the matching `field_name`. The harness types the value — you never see it.
+3. Tap the submit / login / continue button.
+
+Never try to type credentials manually with `type_text` — you do not have access to the values. Always use `fill_credential` for these named fields.
+
+If the app needs a credential type that isn't in this list (e.g. a 2FA / OTP code that wasn't pre-provided), record a note about the gate and call `mark_screen_done` — Spider's v1 cannot handle interactive 2FA challenges.
+"""
+
+
+def build_system_prompt(credential_fields: list[str] | None = None) -> str:
+    """Return the system prompt, optionally augmented with credential guidance."""
+    if credential_fields:
+        fields_list = "\n".join(f"- `{name}`" for name in credential_fields)
+        return SYSTEM_PROMPT + _CREDENTIALS_GUIDANCE_TEMPLATE.format(fields_list=fields_list)
+    return SYSTEM_PROMPT
+
+
+def build_tools(credential_fields: list[str] | None = None) -> list[dict]:
+    """Return the tool list, optionally augmented with `fill_credential`."""
+    if credential_fields:
+        return [*TOOLS, FILL_CREDENTIAL_TOOL]
+    return list(TOOLS)

@@ -63,6 +63,9 @@ def run_exploration(config: RunConfig) -> Path:
             "package": package,
             "model": config.model,
             "max_steps": config.max_steps,
+            "credential_fields": (
+                config.credentials.field_names() if config.credentials else []
+            ),
         },
     )
 
@@ -71,7 +74,11 @@ def run_exploration(config: RunConfig) -> Path:
     graph = ScreenGraph()
     observer = Observer()
     history: deque = deque(maxlen=8)
-    llm = LLM(model=config.model, image_max_dim=config.image_max_dim)
+    llm = LLM(
+        model=config.model,
+        image_max_dim=config.image_max_dim,
+        credentials=config.credentials,
+    )
 
     trace_path = run_dir / "trace.jsonl"
     no_progress_steps = 0
@@ -175,6 +182,7 @@ def run_exploration(config: RunConfig) -> Path:
                 observer=observer,
                 graph=graph,
                 current_screen=screen,
+                credentials=config.credentials,
             )
         except Exception as e:
             result = {"success": False, "error": f"execute_tool failed: {e}"}

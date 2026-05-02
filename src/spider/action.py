@@ -16,6 +16,7 @@ def execute_tool(
     observer,
     graph,
     current_screen,
+    credentials=None,
 ) -> dict:
     """Execute a tool call. Returns dict with at least 'success' (bool);
     optionally 'error' (str) and 'terminates_run' (bool)."""
@@ -98,5 +99,30 @@ def execute_tool(
 
     if name == "mark_app_fully_explored":
         return {"success": True, "terminates_run": True}
+
+    if name == "fill_credential":
+        if credentials is None or not credentials:
+            return {"success": False, "error": "No credentials configured for this run"}
+        field = params.get("field_name")
+        if not field:
+            return {"success": False, "error": "fill_credential requires field_name"}
+        value = credentials.get(field)
+        if value is None:
+            return {
+                "success": False,
+                "error": f"Unknown credential field '{field}'. Available: {credentials.field_names()}",
+            }
+        eid = params.get("element_id")
+        if eid:
+            elem = next((e for e in current_screen.elements if e.id == eid), None)
+            if elem is None:
+                return {"success": False, "error": f"Unknown element {eid}"}
+            x, y = elem.center
+            graph.mark_explored(current_screen.id, eid)
+            device.tap(x, y)
+            time.sleep(0.5)
+        device.type_text(value)
+        time.sleep(0.5)
+        return {"success": True}
 
     return {"success": False, "error": f"Unknown tool: {name}"}

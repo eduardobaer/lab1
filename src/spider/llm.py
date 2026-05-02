@@ -5,7 +5,13 @@ from io import BytesIO
 from PIL import Image
 from anthropic import Anthropic
 
-from spider.prompts import PRD_SYSTEM_PROMPT, SYSTEM_PROMPT, TOOLS, step_user_message
+from spider.credentials import Credentials
+from spider.prompts import (
+    PRD_SYSTEM_PROMPT,
+    build_system_prompt,
+    build_tools,
+    step_user_message,
+)
 
 
 def downsample_image(png_bytes: bytes, max_dim: int = 1080, quality: int = 85) -> str:
@@ -21,10 +27,20 @@ def downsample_image(png_bytes: bytes, max_dim: int = 1080, quality: int = 85) -
 
 
 class LLM:
-    def __init__(self, model: str = "claude-opus-4-7", image_max_dim: int = 1080):
+    def __init__(
+        self,
+        model: str = "claude-opus-4-7",
+        image_max_dim: int = 1080,
+        credentials: Credentials | None = None,
+    ):
         self.client = Anthropic()  # picks up ANTHROPIC_API_KEY from env
         self.model = model
         self.image_max_dim = image_max_dim
+        # Pre-render the system prompt + tools once. Both fold the credential
+        # field NAMES (never values) into Claude's view of the world.
+        field_names = credentials.field_names() if credentials else []
+        self._system_prompt = build_system_prompt(field_names)
+        self._tools = build_tools(field_names)
 
     def _supports_max_effort(self) -> bool:
         # max effort is Opus-tier only (Opus 4.6 and later).
@@ -60,7 +76,7 @@ class LLM:
         system = [
             {
                 "type": "text",
-                "text": SYSTEM_PROMPT,
+                "text": self._system_prompt,
                 "cache_control": {"type": "ephemeral"},
             },
         ]
@@ -70,7 +86,7 @@ class LLM:
             max_tokens=4096,
             thinking={"type": "adaptive"},
             system=system,
-            tools=TOOLS,
+            tools=self._tools,
             tool_choice={"type": "any"},
             messages=[{"role": "user", "content": user_content}],
         )

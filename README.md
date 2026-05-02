@@ -39,6 +39,38 @@ This will:
 3. Drive Claude through up to 200 steps of exploration
 4. Synthesize a comprehensive PRD
 
+### Login credentials
+
+Most apps require login. Pass credentials via any of:
+
+```bash
+# CLI flags
+spider explore app.apk --username alice --password 's3cr3t'
+
+# Repeated --credential for arbitrary fields (phone, otp, api_key, etc.)
+spider explore app.apk --credential email=alice@example.com --credential phone=+15551234567
+
+# Env vars (SPIDER_USERNAME, SPIDER_EMAIL, SPIDER_PASSWORD, SPIDER_PHONE)
+SPIDER_USERNAME=alice SPIDER_PASSWORD=s3cr3t spider explore app.apk
+
+# JSON file
+echo '{"username": "alice", "password": "s3cr3t", "phone": "+15551234567"}' > creds.json
+spider explore app.apk --credentials-file creds.json
+```
+
+Precedence (highest wins): CLI flags > env vars > file.
+
+**Credential values are never sent to the LLM.** Spider exposes only the field
+NAMES (e.g. `username`, `password`) to Claude. When Claude detects a login
+screen it calls `fill_credential(field_name="password", element_id="e_4")`,
+and the harness types the value locally — the secret never enters the API
+request, the trace log, or the saved `config.json`. The `config.json` for a
+run records which field names were available, but no values.
+
+Interactive 2FA / OTP challenges are not yet supported. Pre-provide an
+`otp_code` field if you can predict the value, or document the gate as a
+known unexplored area.
+
 Outputs land in `runs/<timestamp>-<package>/`:
 
 | File | Contents |
@@ -96,9 +128,10 @@ To reduce cost, pass `--model claude-sonnet-4-6`.
 - **Network capture**: not yet implemented. The PRD's "API contracts" section is
   inferred from UI behavior only. v2 will integrate `mitmproxy` to capture
   HTTPS traffic and document real endpoints.
-- **Login walls**: Spider cannot log in for you. If the app requires
-  authentication, sign in manually on the emulator before running, or the
-  explorer will document only the unauthenticated surface.
+- **Login walls**: Spider can sign in for you when you supply credentials
+  (see "Login credentials" above). Apps requiring SSO (Google / Apple),
+  CAPTCHA, or interactive 2FA are not handled — sign in manually on the
+  emulator first in those cases.
 - **Destructive actions**: Spider is instructed to avoid Delete, Sign out, Pay,
   etc. It will document them but not activate them.
 - **iOS**: not supported.
