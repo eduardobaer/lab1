@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spider"
+version = "0.1.0"
+description = "Spider — Android app documentation crawler powered by Claude"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "uiautomator2>=3.2.0",
+    "click>=8.1.0",
+    "networkx>=3.2",
+    "imagehash>=4.3.1",
+    "pillow>=10.0.0",
+    "python-dotenv>=1.0.0",
+    "lxml>=5.0.0",
+    "pyaxmlparser>=0.3.30",
+]
+
+[project.scripts]
+spider = "spider.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spider"]
